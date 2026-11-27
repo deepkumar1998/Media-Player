@@ -203,7 +203,9 @@
       if (dur > 0) {
         durationLabel.textContent = formatTime(dur);
         currentTimeLabel.textContent = formatTime(cur);
-        seekBar.value = String(Math.round((cur / dur) * 1000));
+        const pct = Math.min(100, (cur / dur) * 100);
+        seekBar.value = String(Math.round(pct * 10));
+        seekBar.style.setProperty('--seek-pct', `${pct.toFixed(2)}%`);
         const item = state.queue[state.currentIndex];
         if (item && !item.duration) {
           item.duration = dur;
@@ -658,6 +660,8 @@
       cancelAnimationFrame(visRafId);
       visRafId = null;
     }
+    discArt.style.setProperty('--beat-scale', '0');
+    discArt.style.setProperty('--beat-glow', '0');
   }
 
   function startVisualizer() {
@@ -672,6 +676,11 @@
       visCtx.clearRect(0, 0, w, h);
 
       if (analyser && freqData) {
+        analyser.getByteFrequencyData(freqData);
+        const bassAvg = (freqData[0] + freqData[1] + freqData[2] + freqData[3]) / (4 * 255);
+        discArt.style.setProperty('--beat-scale', bassAvg.toFixed(3));
+        discArt.style.setProperty('--beat-glow', bassAvg.toFixed(3));
+
         if (state.visMode === 'bars') {
           analyser.getByteFrequencyData(freqData);
           const count = 48;
@@ -1042,6 +1051,7 @@
     currentTimeLabel.textContent = '0:00';
     durationLabel.textContent = '0:00';
     seekBar.value = '0';
+    seekBar.style.setProperty('--seek-pct', '0%');
     seekBuffered.style.width = '0%';
     updatePlayStateUI();
   }
@@ -1141,7 +1151,17 @@
         removeQueueItem(idx);
       });
 
-      li.append(kind, meta, removeBtn);
+      if (idx === state.currentIndex) {
+        const eqBars = document.createElement('div');
+        const isPlayingNow = isYouTubeMode()
+          ? Boolean(ytPlayer && ytReady && ytPlayer.getPlayerState?.() === window.YT?.PlayerState?.PLAYING)
+          : !media.paused && !media.ended && Boolean(media.currentSrc);
+        eqBars.className = `eq-mini-bars${isPlayingNow ? ' playing' : ''}`;
+        eqBars.innerHTML = '<span></span><span></span><span></span>';
+        li.append(kind, meta, eqBars, removeBtn);
+      } else {
+        li.append(kind, meta, removeBtn);
+      }
       queueList.appendChild(li);
     }
   }
@@ -1201,8 +1221,10 @@
     }
     iconPlay.classList.toggle('hidden', playing);
     iconPause.classList.toggle('hidden', !playing);
+    btnPlayPause.classList.toggle('playing', playing);
     statusDot.classList.toggle('playing', playing);
     discArt.classList.toggle('spinning', playing);
+    document.querySelectorAll('.eq-mini-bars').forEach((el) => el.classList.toggle('playing', playing));
     if (playing && stage.classList.contains('audio-mode')) {
       startVisualizer();
     } else {
@@ -1343,7 +1365,9 @@
   media.addEventListener('timeupdate', () => {
     if (state.isSeeking || !Number.isFinite(media.duration) || media.duration <= 0) return;
     currentTimeLabel.textContent = formatTime(media.currentTime);
-    seekBar.value = String(Math.round((media.currentTime / media.duration) * 1000));
+    const pct = Math.min(100, (media.currentTime / media.duration) * 100);
+    seekBar.value = String(Math.round(pct * 10));
+    seekBar.style.setProperty('--seek-pct', `${pct.toFixed(2)}%`);
     syncLyrics(media.currentTime);
     const now = Date.now();
     if (now - state.lastProgressSave > 2000) {
