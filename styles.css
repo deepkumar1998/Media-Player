@@ -1098,13 +1098,32 @@ kbd {
 }
 
 .app-shell:fullscreen {
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
+}
+
+.app-shell:fullscreen .controls-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, rgba(8, 10, 15, 0.92), rgba(8, 10, 15, 0.55) 72%, transparent);
+  border-top: none;
+  padding-top: 20px;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.app-shell:fullscreen .popover-panel {
+  bottom: 86px;
+}
+
+.app-shell.controls-idle:fullscreen {
+  cursor: none;
 }
 
 .app-shell.controls-idle:fullscreen .controls-bar {
   opacity: 0;
+  transform: translateY(10px);
   pointer-events: none;
-  transition: opacity 0.3s ease;
 }
 
 @media (max-width: 780px) {
