@@ -53,6 +53,11 @@
       <section class="stage" id="stage">
         <video id="mediaElement" playsinline crossorigin="anonymous"></video>
 
+        <!-- YouTube Embed Stage -->
+        <div class="yt-stage hidden" id="ytStage">
+          <div id="ytPlayerMount"></div>
+        </div>
+
         <!-- Audio Visualizer & Art Overlay -->
         <div class="audio-stage" id="audioStage">
           <canvas id="visualizerCanvas"></canvas>
@@ -235,8 +240,8 @@
         <button class="btn-icon-sm" data-close-modal="urlModal" aria-label="Close">&times;</button>
       </div>
       <form id="urlForm" class="modal-body">
-        <label class="field-label" for="urlInput">Direct stream or file URL (MP4, WebM, MP3, OGG, WAV)</label>
-        <input type="url" id="urlInput" class="text-input" placeholder="https://example.com/video.mp4" required />
+        <label class="field-label" for="urlInput">Direct stream URL (MP4, WebM, MP3) or YouTube video/playlist URL</label>
+        <input type="url" id="urlInput" class="text-input" placeholder="https://www.youtube.com/watch?v=... or https://example.com/video.mp4" required />
         <div class="modal-footer">
           <button type="button" class="btn-secondary" data-close-modal="urlModal">Cancel</button>
           <button type="submit" class="btn-primary">Add &amp; Play</button>
