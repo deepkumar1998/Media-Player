@@ -38,6 +38,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           <span>URL</span>
         </button>
+        <button class="btn-ghost" id="btnDiscoverMusic" title="Discover Latest Online Music">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 17V9l7-2v8"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="14.5" cy="15" r="1.5"/></svg>
+          <span>Discover</span>
+        </button>
         <button class="btn-icon" id="btnShortcuts" title="Keyboard Shortcuts (?)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </button>
@@ -77,7 +81,9 @@
               <button class="chip active" data-vis="bars">Bars</button>
               <button class="chip" data-vis="wave">Wave</button>
               <button class="chip" data-vis="radial">Radial</button>
+              <button class="chip" id="btnLyricsToggle" type="button">Lyrics</button>
             </div>
+            <div class="lyrics-box hidden" id="lyricsBox" aria-live="polite"></div>
           </div>
         </div>
 
@@ -247,6 +253,39 @@
           <button type="submit" class="btn-primary">Add &amp; Play</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Discover Online Music Modal (YouTube) -->
+  <div class="modal-backdrop hidden" id="discoverModal">
+    <div class="modal-card modal-wide" role="dialog" aria-labelledby="discoverTitle">
+      <div class="modal-header">
+        <h3 id="discoverTitle">YouTube Music</h3>
+        <button class="btn-icon-sm" data-close-modal="discoverModal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body discover-body">
+        <div class="yt-key-row" id="ytKeyRow">
+          <input type="password" id="ytApiKeyInput" class="text-input" placeholder="Paste YouTube Data API v3 key (saved locally)..." autocomplete="off" />
+          <button type="button" class="btn-secondary btn-sm" id="btnSaveYtKey">Save Key</button>
+        </div>
+        <form id="discoverSearchForm" class="discover-search-row">
+          <input type="text" id="discoverSearchInput" class="text-input" placeholder="Search YouTube songs, artists, or playlists..." autocomplete="off" />
+          <button type="submit" class="btn-primary">Search</button>
+        </form>
+        <div class="discover-chips" id="discoverChips">
+          <button type="button" class="chip active" data-genre="trending">Latest Music</button>
+          <button type="button" class="chip" data-genre="bollywood">Bollywood</button>
+          <button type="button" class="chip" data-genre="pop">Pop Hits</button>
+          <button type="button" class="chip" data-genre="hiphop">Hip-Hop</button>
+          <button type="button" class="chip" data-genre="lofi">Lo-Fi</button>
+          <button type="button" class="chip" data-genre="electronic">Electronic</button>
+        </div>
+        <div class="discover-toolbar">
+          <span class="discover-status" id="discoverStatus">Enter your YouTube API key to load latest music</span>
+          <button type="button" class="btn-secondary btn-sm" id="btnDiscoverPlayAll">Play All</button>
+        </div>
+        <ul class="discover-list" id="discoverList"></ul>
+      </div>
     </div>
   </div>
 

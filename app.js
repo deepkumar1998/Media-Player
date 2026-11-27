@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = 'pulse_media_player_prefs_v1';
   const PLAYBACK_KEY = 'pulse_last_playback_v1';
+  const YT_API_KEY_STORAGE = 'pulse_yt_api_key_v1';
   const IDB_NAME = 'pulse_media_db';
   const IDB_STORE = 'handles';
   const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -39,6 +40,8 @@
   const visCanvas = $('visualizerCanvas');
   const visCtx = visCanvas.getContext('2d');
   const visModeBar = $('visualizerModeBar');
+  const btnLyricsToggle = $('btnLyricsToggle');
+  const lyricsBox = $('lyricsBox');
 
   const seekBar = $('seekBar');
   const seekWrap = $('seekWrap');
@@ -85,6 +88,15 @@
   const urlModal = $('urlModal');
   const urlForm = $('urlForm');
   const urlInput = $('urlInput');
+  const discoverModal = $('discoverModal');
+  const ytApiKeyInput = $('ytApiKeyInput');
+  const btnSaveYtKey = $('btnSaveYtKey');
+  const discoverSearchForm = $('discoverSearchForm');
+  const discoverSearchInput = $('discoverSearchInput');
+  const discoverChips = $('discoverChips');
+  const discoverStatus = $('discoverStatus');
+  const discoverList = $('discoverList');
+  const btnDiscoverPlayAll = $('btnDiscoverPlayAll');
   const shortcutsModal = $('shortcutsModal');
 
   // Application State
@@ -917,11 +929,21 @@
     hideYouTubePlayer();
     stage.classList.toggle('audio-mode', isAudio);
     audioTitle.textContent = item.title;
-    audioSubtitle.textContent = item.fileName || 'Streaming Audio';
+    audioSubtitle.textContent = item.artist || item.fileName || 'Streaming Audio';
     btnSnapshot.classList.toggle('hidden', isAudio);
     btnPip.classList.toggle('hidden', isAudio);
 
+    if (item.noCors) {
+      media.removeAttribute('crossorigin');
+    } else {
+      media.crossOrigin = 'anonymous';
+    }
+
     media.src = item.src;
+    resetLyrics();
+    if (isAudio && state.lyricsVisible) {
+      loadLyricsForCurrentTrack();
+    }
     media.playbackRate = SPEEDS[state.speedIndex];
     media.volume = state.volume;
     media.muted = state.muted;
@@ -1322,6 +1344,7 @@
     if (state.isSeeking || !Number.isFinite(media.duration) || media.duration <= 0) return;
     currentTimeLabel.textContent = formatTime(media.currentTime);
     seekBar.value = String(Math.round((media.currentTime / media.duration) * 1000));
+    syncLyrics(media.currentTime);
     const now = Date.now();
     if (now - state.lastProgressSave > 2000) {
       state.lastProgressSave = now;
@@ -1485,6 +1508,298 @@
     e.target.value = '';
   });
 
+  // --- Live Synced Lyrics (LRCLIB) ---
+  let parsedLyrics = [];
+  let activeLyricIndex = -1;
+  let loadedLyricsTrackId = null;
+
+  function resetLyrics() {
+    parsedLyrics = [];
+    activeLyricIndex = -1;
+    loadedLyricsTrackId = null;
+    lyricsBox.innerHTML = '';
+  }
+
+  function parseLrc(lrcText) {
+    const lines = [];
+    const regex = /\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](.*)/;
+    for (const raw of lrcText.split('\n')) {
+      const m = raw.match(regex);
+      if (!m) continue;
+      const time = Number(m[1]) * 60 + Number(m[2]);
+      const text = m[3].trim();
+      if (text) lines.push({ time, text });
+    }
+    return lines;
+  }
+
+  async function loadLyricsForCurrentTrack() {
+    const item = state.queue[state.currentIndex];
+    if (!item || item.kind !== 'audio') return;
+    if (loadedLyricsTrackId === item.id) return;
+    loadedLyricsTrackId = item.id;
+    lyricsBox.innerHTML = '<div class="lyric-line">Searching lyrics...</div>';
+
+    const cleanTitle = item.title.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+    const query = [cleanTitle, item.artist].filter(Boolean).join(' ');
+
+    try {
+      const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+      if (!res.ok) throw new Error('Lyrics unavailable');
+      const results = await res.json();
+      const match = results.find((r) => r.syncedLyrics) || results.find((r) => r.plainLyrics);
+      if (!match) {
+        lyricsBox.innerHTML = '<div class="lyric-line">No lyrics found for this track</div>';
+        return;
+      }
+
+      lyricsBox.innerHTML = '';
+      if (match.syncedLyrics) {
+        parsedLyrics = parseLrc(match.syncedLyrics);
+        parsedLyrics.forEach((line) => {
+          const div = document.createElement('div');
+          div.className = 'lyric-line';
+          div.textContent = line.text;
+          lyricsBox.appendChild(div);
+        });
+        syncLyrics(media.currentTime);
+      } else {
+        parsedLyrics = [];
+        match.plainLyrics.split('\n').forEach((text) => {
+          if (!text.trim()) return;
+          const div = document.createElement('div');
+          div.className = 'lyric-line';
+          div.textContent = text;
+          lyricsBox.appendChild(div);
+        });
+      }
+    } catch {
+      lyricsBox.innerHTML = '<div class="lyric-line">Could not load lyrics</div>';
+    }
+  }
+
+  function syncLyrics(currentTime) {
+    if (!state.lyricsVisible || !parsedLyrics.length) return;
+    let idx = -1;
+    for (let i = 0; i < parsedLyrics.length; i++) {
+      if (currentTime >= parsedLyrics[i].time) idx = i;
+      else break;
+    }
+    if (idx === activeLyricIndex) return;
+    activeLyricIndex = idx;
+    const nodes = lyricsBox.children;
+    for (let i = 0; i < nodes.length; i++) {
+      nodes[i].classList.toggle('active', i === idx);
+    }
+    if (idx >= 0 && nodes[idx]) {
+      nodes[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }
+
+  btnLyricsToggle.addEventListener('click', () => {
+    state.lyricsVisible = !state.lyricsVisible;
+    btnLyricsToggle.classList.toggle('active', state.lyricsVisible);
+    lyricsBox.classList.toggle('hidden', !state.lyricsVisible);
+    if (state.lyricsVisible) {
+      loadLyricsForCurrentTrack();
+    }
+  });
+
+  // --- Discover Online Music (YouTube Data API v3) ---
+  const YT_GENRE_QUERIES = {
+    bollywood: 'latest bollywood songs',
+    pop: 'latest pop music hits',
+    hiphop: 'latest hip hop music',
+    lofi: 'lofi hip hop music',
+    electronic: 'latest electronic music',
+  };
+  let discoverResults = [];
+  let activeDiscoverGenre = 'trending';
+
+  function getSavedYtApiKey() {
+    try {
+      return localStorage.getItem(YT_API_KEY_STORAGE) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function decodeHtmlEntities(str) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = str || '';
+    return txt.value;
+  }
+
+  async function loadDiscoverMusic({ genre = activeDiscoverGenre, query = '' } = {}) {
+    activeDiscoverGenre = genre;
+    const apiKey = getSavedYtApiKey().trim();
+    if (!apiKey) {
+      discoverStatus.textContent = 'Paste and save your YouTube Data API v3 key above';
+      discoverList.innerHTML = '';
+      return;
+    }
+
+    discoverStatus.textContent = 'Loading from YouTube...';
+    discoverList.innerHTML = '';
+    discoverResults = [];
+
+    try {
+      const q = query.trim();
+      let url;
+      if (!q && genre === 'trending') {
+        url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&maxResults=25&key=${encodeURIComponent(apiKey)}`;
+      } else {
+        const searchTerm = q || YT_GENRE_QUERIES[genre] || 'latest music';
+        url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=25&q=${encodeURIComponent(searchTerm)}&key=${encodeURIComponent(apiKey)}`;
+      }
+
+      const res = await fetch(url);
+      const json = await res.json();
+      if (!res.ok) {
+        const msg = json?.error?.message || 'YouTube API request failed';
+        throw new Error(msg);
+      }
+
+      discoverResults = (json.items || [])
+        .map((item) => {
+          const videoId = typeof item.id === 'string' ? item.id : item.id?.videoId;
+          if (!videoId) return null;
+          const snip = item.snippet || {};
+          return {
+            id: `yt-${videoId}`,
+            title: decodeHtmlEntities(snip.title || 'YouTube Video'),
+            artist: decodeHtmlEntities(snip.channelTitle || 'YouTube'),
+            fileName: `https://www.youtube.com/watch?v=${videoId}`,
+            artwork: snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '',
+            kind: 'youtube',
+            ytVideoId: videoId,
+            ytListId: null,
+            src: `https://www.youtube.com/watch?v=${videoId}`,
+            isObjectUrl: false,
+            duration: null,
+          };
+        })
+        .filter(Boolean);
+
+      discoverStatus.textContent = q
+        ? `${discoverResults.length} YouTube results for "${q}"`
+        : `${discoverResults.length} YouTube ${genre === 'trending' ? 'latest music' : genre} tracks`;
+
+      renderDiscoverList();
+    } catch (err) {
+      discoverStatus.textContent = err?.message || 'Could not load YouTube music.';
+    }
+  }
+
+  function renderDiscoverList() {
+    discoverList.innerHTML = '';
+    if (!discoverResults.length) {
+      const empty = document.createElement('li');
+      empty.className = 'discover-status';
+      empty.textContent = 'No videos found. Try another search.';
+      discoverList.appendChild(empty);
+      return;
+    }
+
+    discoverResults.forEach((track) => {
+      const li = document.createElement('li');
+      li.className = 'discover-item';
+
+      const art = document.createElement('img');
+      art.className = 'discover-art';
+      art.alt = '';
+      if (track.artwork) {
+        art.src = track.artwork;
+      } else {
+        art.style.visibility = 'hidden';
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'discover-meta';
+      const title = document.createElement('div');
+      title.className = 'discover-title';
+      title.textContent = track.title;
+      const artist = document.createElement('div');
+      artist.className = 'discover-artist';
+      artist.textContent = track.artist;
+      meta.append(title, artist);
+
+      const actions = document.createElement('div');
+      actions.className = 'discover-actions';
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'btn-secondary btn-sm';
+      addBtn.textContent = '+ Queue';
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addItemsToQueue([{ ...track, id: `${track.id}-${Date.now()}` }], false);
+      });
+
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'btn-primary btn-sm';
+      playBtn.textContent = 'Play';
+      playBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addItemsToQueue([{ ...track, id: `${track.id}-${Date.now()}` }], true);
+        discoverModal.classList.add('hidden');
+      });
+
+      actions.append(addBtn, playBtn);
+      li.append(art, meta, actions);
+      li.addEventListener('click', () => {
+        addItemsToQueue([{ ...track, id: `${track.id}-${Date.now()}` }], true);
+        discoverModal.classList.add('hidden');
+      });
+
+      discoverList.appendChild(li);
+    });
+  }
+
+  ytApiKeyInput.value = getSavedYtApiKey();
+
+  btnSaveYtKey.addEventListener('click', () => {
+    const key = ytApiKeyInput.value.trim();
+    try {
+      if (key) localStorage.setItem(YT_API_KEY_STORAGE, key);
+      else localStorage.removeItem(YT_API_KEY_STORAGE);
+    } catch {
+      // Ignore storage errors
+    }
+    showToast(key ? 'YouTube API key saved' : 'YouTube API key cleared');
+    if (key) {
+      loadDiscoverMusic({ genre: activeDiscoverGenre, query: discoverSearchInput.value });
+    }
+  });
+
+  $('btnDiscoverMusic').addEventListener('click', () => {
+    discoverModal.classList.remove('hidden');
+    if (!discoverResults.length) {
+      loadDiscoverMusic({ genre: activeDiscoverGenre });
+    }
+  });
+
+  discoverChips.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-genre]');
+    if (!chip) return;
+    discoverChips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === chip));
+    discoverSearchInput.value = '';
+    loadDiscoverMusic({ genre: chip.dataset.genre });
+  });
+
+  discoverSearchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    loadDiscoverMusic({ genre: activeDiscoverGenre, query: discoverSearchInput.value });
+  });
+
+  btnDiscoverPlayAll.addEventListener('click', () => {
+    if (!discoverResults.length) return;
+    const cloned = discoverResults.map((t, i) => ({ ...t, id: `${t.id}-${Date.now()}-${i}` }));
+    addItemsToQueue(cloned, true);
+    discoverModal.classList.add('hidden');
+  });
+
   // Modals
   $('btnOpenUrl').addEventListener('click', () => {
     urlModal.classList.remove('hidden');
@@ -1497,7 +1812,7 @@
     btn.addEventListener('click', () => $(btn.dataset.closeModal).classList.add('hidden'));
   });
 
-  [urlModal, shortcutsModal].forEach((modal) => {
+  [urlModal, discoverModal, shortcutsModal].forEach((modal) => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.add('hidden');
     });
@@ -1661,6 +1976,7 @@
         break;
       case 'escape':
         urlModal.classList.add('hidden');
+        discoverModal.classList.add('hidden');
         shortcutsModal.classList.add('hidden');
         eqPanel.classList.add('hidden');
         btnEqualizer.classList.remove('active');
