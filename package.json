@@ -1,0 +1,11 @@
+{
+  "name": "pulse-media-player",
+  "version": "1.0.0",
+  "description": "Lightweight, modern universal audio and video web media player",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["media-player", "audio", "video", "visualizer", "equalizer"],
+  "license": "MIT"
+}

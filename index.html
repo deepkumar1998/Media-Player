@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulse — Lightweight Media Player</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- Top Header -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="6 4 20 12 6 20 6 4"></polygon>
+          </svg>
+        </div>
+        <span class="brand-name">Pulse</span>
+        <span class="brand-tag">Media Player</span>
+      </div>
+
+      <div class="now-playing-pill" id="nowPlayingPill" title="Current media">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="now-playing-text" id="headerTrackTitle">No media loaded</span>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn-ghost" id="btnAddFiles" title="Open Media Files (Ctrl+O)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <span>Files</span>
+        </button>
+        <button class="btn-ghost" id="btnAddFolder" title="Open Folder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Folder</span>
+        </button>
+        <button class="btn-ghost" id="btnOpenUrl" title="Open Media URL">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span>URL</span>
+        </button>
+        <button class="btn-icon" id="btnShortcuts" title="Keyboard Shortcuts (?)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+        <button class="btn-icon active" id="btnToggleSidebar" title="Toggle Playlist (P)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+      <!-- Stage / Viewport -->
+      <section class="stage" id="stage">
+        <video id="mediaElement" playsinline crossorigin="anonymous"></video>
+
+        <!-- Audio Visualizer & Art Overlay -->
+        <div class="audio-stage" id="audioStage">
+          <canvas id="visualizerCanvas"></canvas>
+          <div class="audio-center-card" id="audioCard">
+            <div class="disc-art" id="discArt">
+              <div class="disc-inner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M9 18V5l12-2v13"/>
+                  <circle cx="6" cy="18" r="3"/>
+                  <circle cx="18" cy="16" r="3"/>
+                </svg>
+              </div>
+            </div>
+            <h2 class="audio-title" id="audioTitle">Drop media to play</h2>
+            <p class="audio-subtitle" id="audioSubtitle">MP4, WebM, MP3, FLAC, WAV, OGG &amp; SRT/VTT subtitles</p>
+            <div class="visualizer-mode-bar" id="visualizerModeBar">
+              <button class="chip active" data-vis="bars">Bars</button>
+              <button class="chip" data-vis="wave">Wave</button>
+              <button class="chip" data-vis="radial">Radial</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty / Dropzone State -->
+        <div class="empty-state" id="emptyState">
+          <div class="empty-card">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <h1>Drop audio or video files here</h1>
+            <p>Supports MP4, WebM, MKV, MP3, FLAC, WAV, OGG, AAC, plus SRT/VTT subtitles</p>
+            <div class="empty-actions">
+              <button class="btn-primary hidden" id="btnResumeLastFolder">Resume Last Folder</button>
+              <button class="btn-primary" id="btnEmptyOpenFiles">Browse Files</button>
+              <button class="btn-secondary" id="btnEmptyOpenFolder">Open Folder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drag-over highlight -->
+        <div class="drop-overlay" id="dropOverlay">
+          <div class="drop-overlay-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Drop files or folders to add to queue</span>
+          </div>
+        </div>
+
+        <!-- Toast Feedback -->
+        <div class="stage-toast" id="stageToast" aria-live="polite"></div>
+
+        <!-- Equalizer Popover -->
+        <div class="popover-panel hidden" id="eqPanel" role="dialog" aria-label="Equalizer">
+          <div class="popover-header">
+            <span>5-Band Equalizer</span>
+            <select id="eqPresetSelect" class="select-compact" aria-label="Equalizer Preset">
+              <option value="flat">Flat</option>
+              <option value="bass">Bass Boost</option>
+              <option value="vocal">Vocal</option>
+              <option value="electronic">Electronic</option>
+              <option value="rock">Rock</option>
+              <option value="acoustic">Acoustic</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="eq-bands" id="eqBands"></div>
+        </div>
+      </section>
+
+      <!-- Playlist Sidebar -->
+      <aside class="playlist-sidebar" id="playlistSidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title-row">
+            <h2>Queue <span class="badge" id="queueCount">0</span></h2>
+            <div class="sidebar-actions">
+              <button class="btn-icon-sm" id="btnAddSubtitle" title="Load Subtitle (.srt / .vtt)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>
+              </button>
+              <button class="btn-icon-sm" id="btnClearQueue" title="Clear Queue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="queueSearch" placeholder="Filter queue..." autocomplete="off" />
+          </div>
+        </div>
+        <ul class="queue-list" id="queueList"></ul>
+      </aside>
+    </main>
+
+    <!-- Bottom Transport Controls -->
+    <footer class="controls-bar" id="controlsBar">
+      <!-- Seek Bar -->
+      <div class="seek-row">
+        <span class="time-label" id="currentTimeLabel">0:00</span>
+        <div class="seek-track-wrap" id="seekWrap">
+          <div class="seek-tooltip" id="seekTooltip">0:00</div>
+          <div class="seek-buffered" id="seekBuffered"></div>
+          <input type="range" id="seekBar" min="0" max="1000" value="0" step="1" aria-label="Seek" />
+        </div>
+        <span class="time-label" id="durationLabel">0:00</span>
+      </div>
+
+      <!-- Buttons Row -->
+      <div class="controls-row">
+        <div class="controls-left">
+          <button class="btn-icon" id="btnShuffle" title="Shuffle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+          </button>
+          <button class="btn-icon" id="btnLoop" title="Loop: Off">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span class="loop-badge" id="loopBadge">1</span>
+          </button>
+
+          <div class="volume-group">
+            <button class="btn-icon" id="btnMute" title="Mute (M)">
+              <svg id="iconVolHigh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              <svg id="iconVolMuted" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+            </button>
+            <input type="range" id="volumeBar" min="0" max="1" step="0.01" value="0.85" aria-label="Volume" />
+          </div>
+        </div>
+
+        <div class="controls-center">
+          <button class="btn-icon" id="btnPrev" title="Previous Track">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+          </button>
+          <button class="btn-icon" id="btnSkipBack" title="Rewind 10s (J)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/></svg>
+          </button>
+          <button class="btn-play" id="btnPlayPause" title="Play / Pause (Space)">
+            <svg id="iconPlay" viewBox="0 0 24 24" fill="currentColor"><polygon points="7 4 20 12 7 20 7 4"/></svg>
+            <svg id="iconPause" class="hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          </button>
+          <button class="btn-icon" id="btnSkipForward" title="Forward 10s (L)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
+          </button>
+          <button class="btn-icon" id="btnNext" title="Next Track">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </button>
+        </div>
+
+        <div class="controls-right">
+          <button class="btn-pill" id="btnSpeed" title="Playback Speed ([ / ])">1x</button>
+          <button class="btn-icon" id="btnEqualizer" title="Equalizer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </button>
+          <button class="btn-icon hidden" id="btnSubtitlesToggle" title="Toggle Subtitles (C)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>
+          </button>
+          <button class="btn-icon" id="btnSnapshot" title="Capture Video Frame">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <button class="btn-icon" id="btnPip" title="Picture in Picture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1"/></svg>
+          </button>
+          <button class="btn-icon" id="btnFullscreen" title="Fullscreen (F)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Hidden File Inputs -->
+  <input type="file" id="fileInput" multiple accept="video/*,audio/*,.mkv,.flac,.ogg,.opus,.m4a,.srt,.vtt" class="hidden" />
+  <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" />
+  <input type="file" id="subtitleInput" accept=".srt,.vtt" class="hidden" />
+
+  <!-- Open URL Modal -->
+  <div class="modal-backdrop hidden" id="urlModal">
+    <div class="modal-card" role="dialog" aria-labelledby="urlModalTitle">
+      <div class="modal-header">
+        <h3 id="urlModalTitle">Open Media URL</h3>
+        <button class="btn-icon-sm" data-close-modal="urlModal" aria-label="Close">&times;</button>
+      </div>
+      <form id="urlForm" class="modal-body">
+        <label class="field-label" for="urlInput">Direct stream or file URL (MP4, WebM, MP3, OGG, WAV)</label>
+        <input type="url" id="urlInput" class="text-input" placeholder="https://example.com/video.mp4" required />
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" data-close-modal="urlModal">Cancel</button>
+          <button type="submit" class="btn-primary">Add &amp; Play</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div class="modal-backdrop hidden" id="shortcutsModal">
+    <div class="modal-card" role="dialog" aria-labelledby="shortcutsTitle">
+      <div class="modal-header">
+        <h3 id="shortcutsTitle">Keyboard Shortcuts</h3>
+        <button class="btn-icon-sm" data-close-modal="shortcutsModal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body shortcuts-grid">
+        <div class="shortcut-item"><kbd>Space</kbd> / <kbd>K</kbd><span>Play / Pause</span></div>
+        <div class="shortcut-item"><kbd>&larr;</kbd> / <kbd>&rarr;</kbd><span>Seek &plusmn;5s</span></div>
+        <div class="shortcut-item"><kbd>J</kbd> / <kbd>L</kbd><span>Seek &plusmn;10s</span></div>
+        <div class="shortcut-item"><kbd>&uarr;</kbd> / <kbd>&darr;</kbd><span>Volume &plusmn;5%</span></div>
+        <div class="shortcut-item"><kbd>M</kbd><span>Mute / Unmute</span></div>
+        <div class="shortcut-item"><kbd>F</kbd><span>Fullscreen</span></div>
+        <div class="shortcut-item"><kbd>P</kbd><span>Toggle Queue</span></div>
+        <div class="shortcut-item"><kbd>N</kbd> / <kbd>B</kbd><span>Next / Previous</span></div>
+        <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>Playback Speed</span></div>
+        <div class="shortcut-item"><kbd>C</kbd><span>Toggle Subtitles</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
