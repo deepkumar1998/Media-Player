@@ -99,7 +99,7 @@
     eqPreset: 'flat',
     eqGains: [0, 0, 0, 0, 0],
     subtitlesEnabled: true,
-    sidebarOpen: true,
+    sidebarOpen: window.innerWidth > 780,
     collapsedFolders: new Set(),
     isSeeking: false,
     pendingSeekTime: null,
@@ -132,7 +132,9 @@
       if (['bars', 'wave', 'radial'].includes(prefs.visMode)) state.visMode = prefs.visMode;
       if (typeof prefs.eqPreset === 'string') state.eqPreset = prefs.eqPreset;
       if (Array.isArray(prefs.eqGains) && prefs.eqGains.length === 5) state.eqGains = prefs.eqGains;
-      if (typeof prefs.sidebarOpen === 'boolean') state.sidebarOpen = prefs.sidebarOpen;
+      if (typeof prefs.sidebarOpen === 'boolean' && window.innerWidth > 780) {
+        state.sidebarOpen = prefs.sidebarOpen;
+      }
     } catch {
       // Ignore malformed storage
     }
@@ -988,11 +990,43 @@
     showToast(`Speed: ${rate}x`);
   }
 
-  function toggleFullscreen() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+  function handleFullscreenOrientation() {
+    const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    const isMobile = window.matchMedia('(pointer: coarse)').matches || Math.min(window.innerWidth, window.innerHeight) <= 780;
+    if (!isMobile || !screen.orientation) return;
+
+    if (isFs) {
+      if (typeof screen.orientation.lock === 'function') {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
     } else {
-      appShell.requestFullscreen().catch(() => {});
+      try {
+        if (typeof screen.orientation.unlock === 'function') {
+          screen.orientation.unlock();
+        }
+      } catch {
+        // Ignore if orientation was not locked
+      }
+    }
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenOrientation);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenOrientation);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document).catch?.(() => {});
+      return;
+    }
+    const reqFs = appShell.requestFullscreen || appShell.webkitRequestFullscreen;
+    if (reqFs) {
+      Promise.resolve(reqFs.call(appShell)).catch(() => {
+        if (typeof media.webkitEnterFullscreen === 'function') {
+          media.webkitEnterFullscreen();
+        }
+      });
+    } else if (typeof media.webkitEnterFullscreen === 'function') {
+      media.webkitEnterFullscreen();
     }
   }
 
